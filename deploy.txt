@@ -1,0 +1,105 @@
+cd /home/www/myweb
+
+tar zxvf pcre-7.7.tar.gz
+cd pcre-7.7
+./configure
+make
+sudo make install
+cd ..
+rm -rf pcre-7.7
+
+tar zxvf nginx-1.4.7.tar.gz
+cd nginx-1.4.7
+./configure --user=www --group=www --prefix=/usr/local/nginx
+make
+sudo make install
+cd ..
+rm -rf nginx-1.4.7
+
+sudo mv /usr/local/nginx/conf/nginx.conf /usr/local/nginx/conf/nginx.conf.orig
+sudo cat > /usr/local/nginx/conf/nginx.conf << "EOF"
+user www www;
+events {
+    worker_connections 1024;
+}
+http {
+    client_max_body_size 40M;
+    server {
+        listen 80;
+        server_name localhost;
+        root /home/www/fcgioj;
+        location ~ \.(html|fcgi) {
+            fastcgi_pass 127.0.0.1:10000;
+            fastcgi_index index.html;
+            fastcgi_param SCRIPT_FILENAME $fastcgi_script_name;
+            fastcgi_param QUERY_STRING $query_string;
+            fastcgi_param REQUEST_METHOD $request_method;
+            fastcgi_param CONTENT_TYPE $content_type;
+            fastcgi_param CONTENT_LENGTH $content_length;
+            fastcgi_param HTTP_COOKIE $http_cookie;
+        }
+    }
+}
+EOF
+
+mkdir /home/www/mysql
+
+tar zxvf mysql-5.5.30.tar.gz
+cd mysql-5.5.30
+cmake -DCMAKE_INSTALL_PERFIX=/usr/local/mysql \
+-DMYSQL_UNIX_ADDR=/home/www/mysql/mysql.sock \
+-DDEFAULT_CHARSET=utf8 \
+-DDEFAULT_COLLATION=utf8_general_ci \
+-DWITH_EXTRA_CHARSETS:STRING=utf8,gbk \
+-DWITH_MYISAM_STORAGE_ENGINE=1 \
+-DWITH_INNOBASE_STORAGE_ENGINE=1 \
+-DWITH_READLINE=1 \
+-DENABLED_LOCAL_INFILE=1 \
+-DMYSQL_DATADIR=/home/www/mysql \
+-DMYSQL_USER=www \
+-DMYSQL_TCP_PORT=3306
+make
+sudo make install
+
+sudo cp support-files/my-medium.cnf /etc/my.cnf
+
+/usr/local/mysql/scripts/mysql_install_db --user=www --basedir=/usr/local/mysql --datadir=/home/www/mysql
+
+tar zxvf spawn-fcgi-1.6.4.tar.gz
+cd spawn-fcgi-1.6.4
+./configure --prefix=/usr/local/spawn-fcgi
+make
+sudo make install
+cd ..
+rm -rf spawn-fcgi-1.6.4
+
+tar zxvf fcgi2-2.4.1.1.tar.gz
+cd fcgi2-2.4.1.1
+./autogen.sh
+./configure
+make
+sudo make install
+cd ..
+rm -rf fcgi2-2.4.1.1
+
+unzip fcgioj-master.zip
+mv fcgioj-master /home/www/fcgioj
+cd /home/www/fcgioj/src
+make
+make install
+make clean
+
+sudo vi /etc/ld.so.conf
+/usr/local/lib
+/usr/local/mysql/lib
+sudo ldconfig
+
+/usr/local/mysql/support-files/mysql.server start
+/usr/local/mysql/bin/mysql -uroot </home/www/fcgioj/sql/mysql.sql
+
+sudo /usr/local/nginx/sbin/nginx
+
+/usr/local/spawn-fcgi/bin/spawn-fcgi -a 127.0.0.1 -p 10000 -u www -f /home/www/fcgioj/index.fcgi
+
+ps -A |grep fcgi
+
