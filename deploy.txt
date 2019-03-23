@@ -23,6 +23,8 @@ events {
     worker_connections 1024;
 }
 http {
+    include mime.types;
+    default_type application/octet-stream;
     client_max_body_size 40M;
     server {
         listen 80;
