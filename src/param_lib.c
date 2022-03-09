@@ -162,7 +162,8 @@ void param_form_data_parse(param_env *p,char *s,char *e)
 	free(h);
 }
 
-void param_print(param_env *p){
+void param_print(param_env *p)
+{
 	char **s;
 	for(s=p->vec;s<p->cur;s++){
 		printf("%s\n",*s+4);
